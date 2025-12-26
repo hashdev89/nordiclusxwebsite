@@ -1,4 +1,4 @@
-import { ShoppingCart, Heart, Eye } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, MessageCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ interface ProductCardProps {
   brand?: string;
   country?: string;
   reviews?: number;
+  onWhatsAppClick?: (product: { name: string; brand?: string; price: number }) => void;
 }
 
 export function ProductCard({
@@ -27,7 +28,8 @@ export function ProductCard({
   rating = 5,
   brand,
   country,
-  reviews = 0
+  reviews = 0,
+  onWhatsAppClick
 }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -83,6 +85,18 @@ export function ProductCard({
               }`}
             />
           </button>
+          {onWhatsAppClick && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onWhatsAppClick({ name, brand, price });
+              }}
+              className="w-10 h-10 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center transition-all shadow-md hover:scale-110 opacity-0 group-hover:opacity-100"
+              title="Chat about this product"
+            >
+              <MessageCircle className="w-5 h-5" />
+            </button>
+          )}
           <button
             className="w-10 h-10 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-all shadow-md hover:scale-110 opacity-0 group-hover:opacity-100"
           >
