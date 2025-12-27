@@ -9,7 +9,7 @@ import { FilterSidebar } from './components/FilterSidebar';
 import { SkinConcernCard } from './components/SkinConcernCard';
 import { PromoBanner } from './components/PromoBanner';
 import { BrandLogo } from './components/BrandLogo';
-import { Sheet, SheetContent } from './components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './components/ui/sheet';
 import logo from './assets/4cb21529e27325b99c96e06426397bce92267e6c.png';
 // Import your local video file - update the filename to match your video
 import heroVideo from './assets/hero-video.mp4';
@@ -334,49 +334,6 @@ export default function App() {
               />
             </div>
           </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <nav className="lg:hidden py-3 border-t border-gray-100 overflow-x-auto">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-max px-2">
-                <a 
-                  href="#shop" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="whitespace-nowrap inline-flex items-center px-3 py-1.5 text-xs sm:text-sm hover:text-primary transition-colors rounded-lg hover:bg-gray-50"
-                >
-                  Shop All
-                </a>
-                <a 
-                  href="#concerns" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="whitespace-nowrap inline-flex items-center px-3 py-1.5 text-xs sm:text-sm hover:text-primary transition-colors rounded-lg hover:bg-gray-50"
-                >
-                  Skin Concerns
-                </a>
-                <a 
-                  href="#categories" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="whitespace-nowrap inline-flex items-center px-3 py-1.5 text-xs sm:text-sm hover:text-primary transition-colors rounded-lg hover:bg-gray-50"
-                >
-                  Categories
-                </a>
-                <a 
-                  href="#brands" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="whitespace-nowrap inline-flex items-center px-3 py-1.5 text-xs sm:text-sm hover:text-primary transition-colors rounded-lg hover:bg-gray-50"
-                >
-                  Brands
-                </a>
-                <a 
-                  href="#deals" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="whitespace-nowrap inline-flex items-center px-3 py-1.5 text-xs sm:text-sm text-red-600 hover:text-red-700 transition-colors rounded-lg hover:bg-red-50"
-                >
-                  Sale
-                </a>
-              </div>
-            </nav>
-          )}
         </div>
       </header>
 
@@ -711,6 +668,78 @@ export default function App() {
       <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
         <SheetContent side="left" className="w-full sm:w-96 p-0">
           <FilterSidebar onClose={() => setFilterOpen(false)} isMobile />
+        </SheetContent>
+      </Sheet>
+
+      {/* Mobile Menu Sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-full sm:w-80 p-0">
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
+            <div className="flex items-center gap-3">
+              <img src={logo} alt="Nordic Lux" className="h-10 w-10" />
+              <SheetTitle className="text-xl">Menu</SheetTitle>
+            </div>
+          </SheetHeader>
+          <nav className="flex flex-col py-4">
+            <a 
+              href="#shop" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-6 py-3 text-base hover:text-primary hover:bg-gray-50 transition-colors flex items-center gap-3"
+            >
+              <ShoppingBag className="w-5 h-5" />
+              <span>Shop All</span>
+            </a>
+            <a 
+              href="#concerns" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-6 py-3 text-base hover:text-primary hover:bg-gray-50 transition-colors flex items-center gap-3"
+            >
+              <span>Skin Concerns</span>
+            </a>
+            <a 
+              href="#categories" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-6 py-3 text-base hover:text-primary hover:bg-gray-50 transition-colors flex items-center gap-3"
+            >
+              <Grid3x3 className="w-5 h-5" />
+              <span>Categories</span>
+            </a>
+            <a 
+              href="#brands" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-6 py-3 text-base hover:text-primary hover:bg-gray-50 transition-colors flex items-center gap-3"
+            >
+              <span>Brands</span>
+            </a>
+            <a 
+              href="#deals" 
+              onClick={() => setMobileMenuOpen(false)}
+              className="px-6 py-3 text-base text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors flex items-center gap-3"
+            >
+              <span>Sale</span>
+            </a>
+            <div className="border-t border-gray-100 mt-4 pt-4">
+              <a 
+                href="#" 
+                onClick={() => {
+                  scrollToContact();
+                  setMobileMenuOpen(false);
+                }}
+                className="px-6 py-3 text-base hover:text-primary hover:bg-gray-50 transition-colors flex items-center gap-3"
+              >
+                <Mail className="w-5 h-5" />
+                <span>Contact</span>
+              </a>
+              <a 
+                href="#" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-6 py-3 text-base hover:text-primary hover:bg-gray-50 transition-colors flex items-center gap-3"
+              >
+                <User className="w-5 h-5" />
+                <span>Account</span>
+              </a>
+            </div>
+          </nav>
         </SheetContent>
       </Sheet>
 
