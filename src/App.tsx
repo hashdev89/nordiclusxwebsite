@@ -250,7 +250,7 @@ export default function App() {
           <div className="flex items-center justify-between h-20 lg:h-24">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <img src={logo} alt="Nordic Lux" className="h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 transition-all duration-300" />
+              <img src={logo.src} alt="Nordic Lux" className="h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 transition-all duration-300" />
               <div className="hidden sm:block">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Beauty . Taste . Health . Elegance</div>
               </div>
@@ -601,7 +601,7 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
             {/* Brand */}
             <div className="lg:col-span-2">
-              <img src={logo} alt="Nordic Lux" className="h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 mb-4 transition-all duration-300" />
+              <img src={logo.src} alt="Nordic Lux" className="h-12 w-12 sm:h-16 sm:w-16 lg:h-20 lg:w-20 mb-4 transition-all duration-300" />
               <p className="text-muted-foreground text-sm mb-6 max-w-xs">
                 Your trusted destination for authentic premium cosmetics from leading US and Canadian brands.
               </p>
@@ -647,6 +647,7 @@ export default function App() {
                 <li><a href="#" className="hover:text-primary transition-colors">Blog</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Affiliate</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Press</a></li>
+                <li><a href="/admin/login" className="hover:text-primary transition-colors">Admin</a></li>
               </ul>
             </div>
           </div>
@@ -676,7 +677,7 @@ export default function App() {
         <SheetContent side="left" className="w-full sm:w-80 p-0">
           <SheetHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="Nordic Lux" className="h-10 w-10" />
+              <img src={logo.src} alt="Nordic Lux" className="h-10 w-10" />
               <SheetTitle className="text-xl">Menu</SheetTitle>
             </div>
           </SheetHeader>
@@ -818,7 +819,7 @@ export default function App() {
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center p-2">
                 <img 
-                  src={logo} 
+                  src={logo.src} 
                   alt="Nordic Lux Logo" 
                   className="object-contain w-8 h-8"
                 />

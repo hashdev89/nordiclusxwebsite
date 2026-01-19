@@ -35,3 +35,11 @@ lerna-debug.log*
 # Vite
 .vite/
 
+# Next.js
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
