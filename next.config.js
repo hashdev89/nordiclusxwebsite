@@ -8,6 +8,8 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
+  // Only use app router, ignore pages directory
+  distDir: '.next',
 }
 
 module.exports = nextConfig
