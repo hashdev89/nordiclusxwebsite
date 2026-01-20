@@ -15,6 +15,7 @@ export interface Product {
   description?: string;
   stock: number;
   sku: string;
+  type?: string; // Product type/variant (e.g., "20g", "50g", "100ml")
   createdAt: string;
   updatedAt: string;
   // Detailed product information

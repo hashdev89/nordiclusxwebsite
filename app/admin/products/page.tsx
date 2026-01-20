@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useData, Product } from '../../contexts/DataContext';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -29,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
-import { Plus, Edit, Trash2, Search, Upload, FileSpreadsheet, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Upload, FileSpreadsheet, FileText, AlertCircle, CheckCircle2, Image as ImageIcon, Download, FileJson } from 'lucide-react';
 import { Textarea } from '../../components/ui/textarea';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
@@ -39,13 +39,23 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isJsonImportDialogOpen, setIsJsonImportDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<{
     success: number;
     errors: Array<{ row: number; message: string }>;
   } | null>(null);
+  const [jsonImportStatus, setJsonImportStatus] = useState<{
+    success: boolean;
+    message: string;
+    imported: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  const imageUploadRef = useRef<HTMLInputElement>(null);
+  const [imageUploadMode, setImageUploadMode] = useState<'url' | 'upload'>('url');
+  const [imagePreview, setImagePreview] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     brand: '',
@@ -56,10 +66,12 @@ export default function Products() {
     description: '',
     stock: '',
     sku: '',
+    type: '',
     rating: '5',
     country: 'USA',
     reviews: '0',
   });
+  const [autoGenerateSku, setAutoGenerateSku] = useState(true);
 
   const filteredProducts = products.filter(
     (p) =>
@@ -67,6 +79,81 @@ export default function Products() {
       p.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Auto-generate SKU based on brand, product name, and type
+  const generateSku = (brand: string, name: string, type: string): string => {
+    if (!brand || !name || !type) return '';
+    
+    // Get brand abbreviation (first 3 letters, uppercase)
+    const brandAbbr = brand
+      .replace(/[^a-zA-Z0-9]/g, '') // Remove special characters
+      .substring(0, 3)
+      .toUpperCase();
+    
+    // Get product name abbreviation
+    // Take first letter of each word, or first few letters if single word
+    const nameWords = name.trim().split(/\s+/);
+    let nameAbbr = '';
+    
+    if (nameWords.length > 1) {
+      // Multiple words: take first letter of each word
+      nameAbbr = nameWords
+        .map(word => word.charAt(0).toUpperCase())
+        .join('');
+    } else {
+      // Single word: take first 3-4 letters
+      const cleanName = name.replace(/[^a-zA-Z0-9]/g, '');
+      nameAbbr = cleanName.substring(0, Math.min(6, cleanName.length));
+      // Capitalize first letter
+      if (nameAbbr.length > 0) {
+        nameAbbr = nameAbbr.charAt(0).toUpperCase() + nameAbbr.substring(1).toLowerCase();
+      }
+    }
+    
+    // Clean type (remove spaces, keep as is)
+    const cleanType = type.trim().replace(/\s+/g, '');
+    
+    // Combine: Brand-NameAbbr-Type
+    return `${brandAbbr}-${nameAbbr}-${cleanType}`;
+  };
+
+  // Auto-generate SKU when brand, name, or type changes
+  useEffect(() => {
+    if (autoGenerateSku && formData.brand && formData.name && formData.type) {
+      const generatedSku = generateSku(formData.brand, formData.name, formData.type);
+      if (generatedSku) {
+        setFormData(prev => ({ ...prev, sku: generatedSku }));
+      }
+    }
+  }, [formData.brand, formData.name, formData.type, autoGenerateSku]);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setFormData({ ...formData, image: base64String });
+      setImagePreview(base64String);
+    };
+    reader.onerror = () => {
+      alert('Error reading image file');
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {
@@ -81,10 +168,15 @@ export default function Products() {
         description: product.description || '',
         stock: product.stock.toString(),
         sku: product.sku,
+        type: product.type || '',
         rating: product.rating.toString(),
         country: product.country,
         reviews: product.reviews.toString(),
       });
+      setAutoGenerateSku(false); // Disable auto-generation when editing
+      setImagePreview(product.image);
+      // Determine if image is base64 or URL
+      setImageUploadMode(product.image.startsWith('data:image') ? 'upload' : 'url');
     } else {
       setEditingProduct(null);
       setFormData({
@@ -97,16 +189,27 @@ export default function Products() {
         description: '',
         stock: '',
         sku: '',
+        type: '',
         rating: '5',
         country: 'USA',
         reviews: '0',
       });
+      setImagePreview('');
+      setImageUploadMode('url');
+      setAutoGenerateSku(true); // Enable auto-generation for new products
     }
     setIsDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate image
+    if (!formData.image) {
+      alert('Please provide an image URL or upload an image file');
+      return;
+    }
+
     const productData = {
       name: formData.name,
       brand: formData.brand || undefined,
@@ -117,6 +220,7 @@ export default function Products() {
       description: formData.description || undefined,
       stock: parseInt(formData.stock),
       sku: formData.sku,
+      type: formData.type || undefined,
       rating: parseInt(formData.rating),
       country: formData.country,
       reviews: parseInt(formData.reviews),
@@ -129,6 +233,8 @@ export default function Products() {
     }
     setIsDialogOpen(false);
     setEditingProduct(null);
+    setImagePreview('');
+    setImageUploadMode('url');
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -308,6 +414,114 @@ export default function Products() {
     document.body.removeChild(link);
   };
 
+  // Export all products as JSON
+  const handleExportJson = () => {
+    const dataStr = JSON.stringify(products, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `products_export_${new Date().toISOString().split('T')[0]}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Import products from JSON
+  const handleJsonImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const jsonData = JSON.parse(e.target?.result as string);
+        
+        // Validate that it's an array
+        if (!Array.isArray(jsonData)) {
+          setJsonImportStatus({
+            success: false,
+            message: 'Invalid JSON format. Expected an array of products.',
+            imported: 0,
+          });
+          return;
+        }
+
+        let imported = 0;
+        let skipped = 0;
+        const errors: string[] = [];
+
+        jsonData.forEach((product: any, index: number) => {
+          try {
+            // Validate required fields
+            if (!product.name || !product.category || !product.price || !product.sku || !product.image || product.stock === undefined) {
+              errors.push(`Row ${index + 1}: Missing required fields`);
+              skipped++;
+              return;
+            }
+
+            // Check if SKU already exists
+            const existingProduct = products.find((p) => p.sku.toLowerCase() === product.sku.toLowerCase());
+            if (existingProduct) {
+              skipped++;
+              return;
+            }
+
+            // Add product
+            addProduct({
+              name: product.name,
+              brand: product.brand || undefined,
+              category: product.category,
+              price: typeof product.price === 'number' ? product.price : parseFloat(product.price),
+              originalPrice: product.originalPrice ? (typeof product.originalPrice === 'number' ? product.originalPrice : parseFloat(product.originalPrice)) : undefined,
+              image: product.image,
+              description: product.description || undefined,
+              stock: typeof product.stock === 'number' ? product.stock : parseInt(product.stock),
+              sku: product.sku,
+              type: product.type || undefined,
+              rating: product.rating || 5,
+              country: product.country || 'USA',
+              reviews: product.reviews || 0,
+              badge: product.badge || undefined,
+              overview: product.overview || undefined,
+              ingredients: product.ingredients || undefined,
+              benefits: product.benefits || undefined,
+              howToUse: product.howToUse || undefined,
+              tips: product.tips || undefined,
+            });
+
+            imported++;
+          } catch (error: any) {
+            errors.push(`Row ${index + 1}: ${error.message}`);
+            skipped++;
+          }
+        });
+
+        setJsonImportStatus({
+          success: imported > 0,
+          message: `Imported ${imported} product(s)${skipped > 0 ? `, skipped ${skipped} duplicate(s) or invalid product(s)` : ''}${errors.length > 0 ? `. ${errors.length} error(s) occurred.` : ''}`,
+          imported,
+        });
+      } catch (error: any) {
+        setJsonImportStatus({
+          success: false,
+          message: `Error parsing JSON: ${error.message}`,
+          imported: 0,
+        });
+      }
+    };
+    reader.onerror = () => {
+      setJsonImportStatus({
+        success: false,
+        message: 'Error reading file',
+        imported: 0,
+      });
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -315,10 +529,18 @@ export default function Products() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Products</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your product catalog</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={handleExportJson}>
+            <Download className="w-4 h-4 mr-2" />
+            Export JSON
+          </Button>
+          <Button variant="outline" onClick={() => setIsJsonImportDialogOpen(true)}>
+            <FileJson className="w-4 h-4 mr-2" />
+            Import JSON
+          </Button>
           <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
-            Import Products
+            Import CSV/Excel
           </Button>
           <Button onClick={() => handleOpenDialog()}>
             <Plus className="w-4 h-4 mr-2" />
@@ -348,6 +570,7 @@ export default function Products() {
                 <TableHead>Name</TableHead>
                 <TableHead>Brand</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>SKU</TableHead>
@@ -357,7 +580,7 @@ export default function Products() {
             <TableBody>
               {filteredProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                     No products found
                   </TableCell>
                 </TableRow>
@@ -374,6 +597,7 @@ export default function Products() {
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>{product.brand || '-'}</TableCell>
                     <TableCell>{product.category}</TableCell>
+                    <TableCell>{product.type || '-'}</TableCell>
                     <TableCell>${product.price.toFixed(2)}</TableCell>
                     <TableCell>{product.stock}</TableCell>
                     <TableCell>{product.sku}</TableCell>
@@ -444,14 +668,53 @@ export default function Products() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sku">SKU *</Label>
+                <Label htmlFor="type">Product Type *</Label>
                 <Input
-                  id="sku"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                  id="type"
+                  placeholder="e.g., 20g, 50g, 100ml"
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   required
                 />
+                <p className="text-xs text-gray-500">Product variant/type (e.g., weight, size)</p>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sku">SKU *</Label>
+                {!editingProduct && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="auto-sku"
+                      checked={autoGenerateSku}
+                      onChange={(e) => setAutoGenerateSku(e.target.checked)}
+                      className="w-4 h-4"
+                    />
+                    <Label htmlFor="auto-sku" className="text-xs text-gray-600 cursor-pointer">
+                      Auto-generate
+                    </Label>
+                  </div>
+                )}
+              </div>
+              <Input
+                id="sku"
+                value={formData.sku}
+                onChange={(e) => {
+                  setFormData({ ...formData, sku: e.target.value });
+                  setAutoGenerateSku(false);
+                }}
+                required
+                placeholder={autoGenerateSku && !editingProduct ? "Will be auto-generated" : "Enter SKU"}
+                disabled={!!(autoGenerateSku && !editingProduct && formData.brand && formData.name && formData.type)}
+                className={autoGenerateSku && !editingProduct && formData.brand && formData.name && formData.type ? "bg-gray-50" : ""}
+              />
+              {autoGenerateSku && !editingProduct && formData.brand && formData.name && formData.type && (
+                <p className="text-xs text-blue-600">
+                  SKU will be generated as: {generateSku(formData.brand, formData.name, formData.type)}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -489,14 +752,88 @@ export default function Products() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="image">Image URL *</Label>
-              <Input
-                id="image"
-                type="url"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                required
-              />
+              <div className="flex items-center justify-between">
+                <Label htmlFor="image">Product Image *</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={imageUploadMode === 'url' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setImageUploadMode('url');
+                      if (imageUploadRef.current) {
+                        imageUploadRef.current.value = '';
+                      }
+                    }}
+                  >
+                    URL
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={imageUploadMode === 'upload' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setImageUploadMode('upload');
+                      setFormData({ ...formData, image: '' });
+                    }}
+                  >
+                    Upload
+                  </Button>
+                </div>
+              </div>
+
+              {imageUploadMode === 'url' ? (
+                <div className="space-y-2">
+                  <Input
+                    id="image"
+                    type="url"
+                    placeholder="https://example.com/image.jpg"
+                    value={formData.image}
+                    onChange={(e) => {
+                      setFormData({ ...formData, image: e.target.value });
+                      setImagePreview(e.target.value);
+                    }}
+                    required={imageUploadMode === 'url'}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    ref={imageUploadRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => imageUploadRef.current?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose Image File
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Supported formats: JPG, PNG, GIF, WebP (Max 5MB)
+                  </p>
+                </div>
+              )}
+
+              {imagePreview && (
+                <div className="mt-4">
+                  <Label>Image Preview</Label>
+                  <div className="mt-2 border rounded-lg overflow-hidden bg-gray-50">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-full h-48 object-contain"
+                      onError={() => setImagePreview('')}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -651,6 +988,97 @@ export default function Products() {
                   setImportStatus(null);
                   if (fileInputRef.current) {
                     fileInputRef.current.value = '';
+                  }
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import JSON Dialog */}
+      <Dialog open={isJsonImportDialogOpen} onOpenChange={setIsJsonImportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Products from JSON</DialogTitle>
+            <DialogDescription>
+              Upload a JSON file exported from another environment (e.g., production) to sync your products
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <FileJson className="w-12 h-12 text-gray-400" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 mb-1">
+                    Upload JSON file
+                  </p>
+                  <p className="text-xs text-gray-500 mb-4">
+                    This will import products from a JSON export file
+                  </p>
+                  <input
+                    ref={jsonFileInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleJsonImport}
+                    className="hidden"
+                    id="json-file-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => jsonFileInputRef.current?.click()}
+                  >
+                    <FileJson className="w-4 h-4 mr-2" />
+                    Choose JSON File
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-blue-900 mb-2">How to use:</h4>
+              <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
+                <li>Go to your production/admin site</li>
+                <li>Click "Export JSON" to download all products</li>
+                <li>Come back here and click "Import JSON"</li>
+                <li>Select the downloaded JSON file</li>
+                <li>Products will be imported (duplicates by SKU will be skipped)</li>
+              </ol>
+            </div>
+
+            {jsonImportStatus && (
+              <div className={`border rounded-lg p-4 flex items-start gap-3 ${
+                jsonImportStatus.success 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                {jsonImportStatus.success ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                )}
+                <div>
+                  <p className={`text-sm font-medium ${
+                    jsonImportStatus.success ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {jsonImportStatus.message}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsJsonImportDialogOpen(false);
+                  setJsonImportStatus(null);
+                  if (jsonFileInputRef.current) {
+                    jsonFileInputRef.current.value = '';
                   }
                 }}
               >

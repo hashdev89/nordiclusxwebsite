@@ -34,9 +34,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setCartItems(parsed);
+          // Validate that parsed data is an array
+          if (Array.isArray(parsed)) {
+            setCartItems(parsed);
+          } else {
+            console.error('Invalid cart data in localStorage, resetting to empty array');
+            localStorage.removeItem('cart');
+            setCartItems([]);
+          }
         } catch (e) {
           console.error('Error loading cart from localStorage', e);
+          localStorage.removeItem('cart');
+          setCartItems([]);
         }
       }
     }
@@ -51,21 +60,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const addToCart = (product: Product, quantity: number = 1) => {
     setCartItems((prev) => {
-      const existingItem = prev.find((item) => item.productId === product.id);
+      // Ensure prev is always an array
+      const currentItems = Array.isArray(prev) ? prev : [];
+      const existingItem = currentItems.find((item) => item.productId === product.id);
       if (existingItem) {
-        return prev.map((item) =>
+        return currentItems.map((item) =>
           item.productId === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      return [...prev, { productId: product.id, product, quantity }];
+      return [...currentItems, { productId: product.id, product, quantity }];
     });
     setIsOpen(true);
   };
 
   const removeFromCart = (productId: string) => {
-    setCartItems((prev) => prev.filter((item) => item.productId !== productId));
+    setCartItems((prev) => {
+      const currentItems = Array.isArray(prev) ? prev : [];
+      return currentItems.filter((item) => item.productId !== productId);
+    });
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -73,11 +87,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeFromCart(productId);
       return;
     }
-    setCartItems((prev) =>
-      prev.map((item) =>
+    setCartItems((prev) => {
+      const currentItems = Array.isArray(prev) ? prev : [];
+      return currentItems.map((item) =>
         item.productId === productId ? { ...item, quantity } : item
-      )
-    );
+      );
+    });
   };
 
   const clearCart = () => {
@@ -85,17 +100,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const getTotal = () => {
+    if (!Array.isArray(cartItems)) return 0;
     return cartItems.reduce((total, item) => {
       return total + item.product.price * item.quantity;
     }, 0);
   };
 
-  const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
+  const cartCount = Array.isArray(cartItems) 
+    ? cartItems.reduce((count, item) => count + item.quantity, 0)
+    : 0;
+
+  // Ensure cartItems is always an array before providing to context
+  const safeCartItems = Array.isArray(cartItems) ? cartItems : [];
 
   return (
     <CartContext.Provider
       value={{
-        cartItems,
+        cartItems: safeCartItems,
         cartCount,
         addToCart,
         removeFromCart,
