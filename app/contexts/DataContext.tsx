@@ -102,6 +102,7 @@ interface DataContextType {
   seo: SEO[];
   users: User[];
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  addProducts: (products: Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>) => void;
   updateProduct: (id: string, product: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
   addCategory: (category: Omit<Category, 'id' | 'createdAt'>) => void;
@@ -301,7 +302,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setProducts([...products, newProduct]);
+    // Use functional update to ensure we always have the latest state
+    setProducts((prevProducts) => [...prevProducts, newProduct]);
+  };
+
+  const addProducts = (productsToAdd: Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>>) => {
+    const timestamp = Date.now();
+    const newProducts: Product[] = productsToAdd.map((product, index) => ({
+      ...product,
+      id: `${timestamp}-${index}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }));
+    // Use functional update to ensure we always have the latest state
+    setProducts((prevProducts) => [...prevProducts, ...newProducts]);
   };
 
   const updateProduct = (id: string, updates: Partial<Product>) => {
@@ -405,6 +419,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         seo,
         users,
         addProduct,
+        addProducts,
         updateProduct,
         deleteProduct,
         addCategory,

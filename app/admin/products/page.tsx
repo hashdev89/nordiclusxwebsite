@@ -35,7 +35,7 @@ import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
 export default function Products() {
-  const { products, addProduct, updateProduct, deleteProduct, categories } = useData();
+  const { products, addProduct, addProducts, updateProduct, deleteProduct, categories } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
@@ -294,6 +294,9 @@ export default function Products() {
   const processImportData = (data: any[]) => {
     const errors: Array<{ row: number; message: string }> = [];
     let successCount = 0;
+    const productsToAdd: Array<Omit<Product, 'id' | 'createdAt' | 'updatedAt'>> = [];
+    const existingSkus = new Set(products.map(p => p.sku.toLowerCase()));
+    const newSkus = new Set<string>();
 
     data.forEach((row, index) => {
       try {
@@ -311,12 +314,13 @@ export default function Products() {
         const name = getValue(['name', 'product name', 'product_name', 'title']);
         const category = getValue(['category', 'cat', 'product category', 'product_category']);
         const price = getValue(['price', 'product price', 'product_price', 'cost']);
-        const sku = getValue(['sku', 'product sku', 'product_sku', 'code']);
+        let sku = getValue(['sku', 'product sku', 'product_sku', 'code']);
         const image = getValue(['image', 'image url', 'image_url', 'imageUrl', 'picture', 'photo']);
         const stock = getValue(['stock', 'quantity', 'qty', 'inventory', 'stock quantity']);
         const brand = getValue(['brand', 'manufacturer', 'maker']);
         const originalPrice = getValue(['original price', 'original_price', 'originalPrice', 'msrp', 'list price']);
         const description = getValue(['description', 'desc', 'details', 'product description']);
+        const type = getValue(['type', 'product type', 'product_type', 'variant', 'weight', 'size']);
         const rating = getValue(['rating', 'stars', 'review rating']) || '5';
         const country = getValue(['country', 'origin', 'made in']) || 'USA';
         const reviews = getValue(['reviews', 'review count', 'review_count', 'num reviews']) || '0';
@@ -334,10 +338,6 @@ export default function Products() {
           errors.push({ row: index + 2, message: `Row ${index + 2}: Valid price is required` });
           return;
         }
-        if (!sku) {
-          errors.push({ row: index + 2, message: `Row ${index + 2}: SKU is required` });
-          return;
-        }
         if (!image) {
           errors.push({ row: index + 2, message: `Row ${index + 2}: Image URL is required` });
           return;
@@ -347,15 +347,28 @@ export default function Products() {
           return;
         }
 
-        // Check if SKU already exists
-        const existingProduct = products.find((p) => p.sku.toLowerCase() === sku.toLowerCase());
-        if (existingProduct) {
+        // Auto-generate SKU if not provided but brand, name, and type are available
+        if (!sku && brand && name && type) {
+          sku = generateSku(brand, name, type);
+        }
+
+        // If still no SKU, require it
+        if (!sku) {
+          errors.push({ row: index + 2, message: `Row ${index + 2}: SKU is required (or provide brand, name, and type for auto-generation)` });
+          return;
+        }
+
+        const skuLower = sku.toLowerCase();
+        
+        // Check if SKU already exists in existing products or in this batch
+        if (existingSkus.has(skuLower) || newSkus.has(skuLower)) {
           errors.push({ row: index + 2, message: `Row ${index + 2}: SKU "${sku}" already exists` });
           return;
         }
 
-        // Add product
-        addProduct({
+        // Add to batch
+        newSkus.add(skuLower);
+        productsToAdd.push({
           name,
           brand: brand || undefined,
           category,
@@ -365,6 +378,7 @@ export default function Products() {
           description: description || undefined,
           stock: parseInt(stock),
           sku,
+          type: type || undefined,
           rating: parseInt(rating) || 5,
           country,
           reviews: parseInt(reviews) || 0,
@@ -375,6 +389,11 @@ export default function Products() {
         errors.push({ row: index + 2, message: `Row ${index + 2}: ${error.message || 'Unknown error'}` });
       }
     });
+
+    // Add all products at once using batch function
+    if (productsToAdd.length > 0) {
+      addProducts(productsToAdd);
+    }
 
     setImportStatus({ success: successCount, errors });
     
